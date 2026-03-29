@@ -237,7 +237,7 @@ def _run_job(job_id: str, queries: list[str], count: int, website_check: bool) -
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
-    host = "0.0.0.0" if port != 5001 else "127.0.0.1"
+    host = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
     logger.info("Lead Scraper läuft auf http://%s:%d", host, port)
     app.run(
         host=host,
