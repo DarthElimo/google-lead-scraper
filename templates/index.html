@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lead Scraper — AutoRise AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Source+Sans+3:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Brand tokens (dark mode only) ─────────────────────────────────── */
+    :root {
+      --bg-base:     #18181B;
+      --bg-dark:     #111113;
+      --bg-elevated: #1C1C1F;
+      --bg-surface:  #222228;
+      --text:        #FAF9F6;
+      --accent:      #C9A962;
+      --btn-text:    #111113;
+      --error:       #DC5050;
+      --spring:      cubic-bezier(0.34, 1.56, 0.64, 1);
+      --reveal:      cubic-bezier(0.16, 1, 0.3, 1);
+
+      /* Text opacity layers */
+      --t100: rgba(250, 249, 246, 1.0);
+      --t60:  rgba(250, 249, 246, 0.60);
+      --t40:  rgba(250, 249, 246, 0.40);
+      --t35:  rgba(250, 249, 246, 0.35);
+
+      /* Spacing tokens */
+      --sp1: 4px;  --sp2: 8px;   --sp3: 14px; --sp4: 18px;
+      --sp5: 24px; --sp6: 28px;  --sp7: 36px; --sp8: 40px;
+    }
+
+    /* ── Reset ──────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Base ───────────────────────────────────────────────────────────── */
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--t100);
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      min-height: 100dvh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Layered radial gradients for depth */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 900px 600px at 10% 0%,   rgba(201, 169, 98, 0.045) 0%, transparent 70%),
+        radial-gradient(ellipse 700px 900px at 90% 100%, rgba(201, 169, 98, 0.030) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* SVG grain texture */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.6;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-dark);
+      border-bottom: 1px solid rgba(201, 169, 98, 0.12);
+      padding: 0 var(--sp6);
+    }
+
+    .header-inner {
+      max-width: 620px;
+      margin: 0 auto;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: var(--sp2);
+    }
+
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: var(--sp2);
+      flex: 1;
+    }
+
+    .logo-name {
+      font-family: 'Source Sans 3', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--t100);
+    }
+
+    .logo-sep {
+      width: 1px;
+      height: 16px;
+      background: rgba(250, 249, 246, 0.15);
+    }
+
+    .app-subtitle {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--t40);
+      letter-spacing: 0.01em;
+    }
+
+    /* ── Main layout ────────────────────────────────────────────────────── */
+    .main {
+      position: relative;
+      z-index: 1;
+      max-width: 620px;
+      margin: 0 auto;
+      padding: var(--sp8) var(--sp6) 80px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp5);
+    }
+
+    /* ── Card base ──────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid rgba(201, 169, 98, 0.10);
+      border-radius: 16px;
+      padding: var(--sp8);
+      box-shadow:
+        0 1px 2px  rgba(201, 169, 98, 0.04),
+        0 4px 16px rgba(0, 0, 0, 0.32),
+        0 16px 48px rgba(0, 0, 0, 0.18);
+      animation: fadeUp 0.65s var(--reveal) 0.05s both;
+    }
+
+    /* Result card — darker, accent border, gradient overlay */
+    .card-result {
+      background:
+        radial-gradient(ellipse 420px 280px at 100% 0%, rgba(201, 169, 98, 0.07) 0%, transparent 60%),
+        var(--bg-dark);
+      border-color: rgba(201, 169, 98, 0.25);
+    }
+
+    /* Error card */
+    .card-error {
+      background:
+        radial-gradient(ellipse 400px 280px at 100% 0%, rgba(220, 80, 80, 0.06) 0%, transparent 60%),
+        var(--bg-dark);
+      border-color: rgba(220, 80, 80, 0.25);
+    }
+
+    /* ── Section label ──────────────────────────────────────────────────── */
+    .label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: var(--sp4);
+    }
+
+    /* ── Form fields ────────────────────────────────────────────────────── */
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp3);
+      margin-bottom: var(--sp5);
+    }
+
+    .query-row {
+      display: flex;
+      gap: var(--sp2);
+      align-items: center;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      height: 48px;
+      background: var(--bg-elevated);
+      border: 1px solid rgba(250, 249, 246, 0.10);
+      border-radius: 8px;
+      color: var(--t100);
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 15px;
+      font-weight: 400;
+      padding: 0 16px;
+      outline: none;
+      transition: border-color 0.15s linear, box-shadow 0.15s linear;
+    }
+
+    input[type="number"] {
+      width: 130px;
+      flex-shrink: 0;
+    }
+
+    input::placeholder { color: var(--t35); }
+
+    input:focus {
+      border-color: rgba(201, 169, 98, 0.50);
+      box-shadow: 0 0 0 3px rgba(201, 169, 98, 0.08);
+    }
+
+    input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Remove arrows from number input */
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* ── Buttons ────────────────────────────────────────────────────────── */
+    .btn-gold {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--sp2);
+      width: 100%;
+      height: 52px;
+      background: var(--accent);
+      color: var(--btn-text);
+      border: none;
+      border-radius: 8px;
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      box-shadow:
+        0 2px 4px  rgba(201, 169, 98, 0.15),
+        0 6px 20px rgba(201, 169, 98, 0.12),
+        0 1px 1px  rgba(0, 0, 0, 0.30);
+      transition:
+        transform   0.22s var(--spring),
+        box-shadow  0.20s var(--spring),
+        opacity     0.15s linear;
+      margin-top: var(--sp6);
+    }
+
+    .btn-gold:hover:not(:disabled) {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow:
+        0 4px 8px  rgba(201, 169, 98, 0.22),
+        0 12px 32px rgba(201, 169, 98, 0.18),
+        0 1px 2px  rgba(0, 0, 0, 0.35);
+    }
+
+    .btn-gold:active:not(:disabled) {
+      transform: scale(0.98);
+      box-shadow:
+        0 1px 3px  rgba(201, 169, 98, 0.10),
+        0 3px 10px rgba(201, 169, 98, 0.08);
+    }
+
+    .btn-gold:focus-visible {
+      outline: 2px solid rgba(201, 169, 98, 0.6);
+      outline-offset: 3px;
+    }
+
+    .btn-gold:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp2);
+      height: 36px;
+      padding: 0 14px;
+      background: transparent;
+      border: 1px solid rgba(250, 249, 246, 0.15);
+      border-radius: 7px;
+      color: var(--t60);
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition:
+        border-color  0.15s linear,
+        opacity       0.15s linear,
+        transform     0.22s var(--spring);
+    }
+
+    .btn-ghost:hover {
+      border-color: rgba(201, 169, 98, 0.40);
+      color: var(--t100);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost:active { transform: scale(0.97); }
+
+    .btn-ghost:focus-visible {
+      outline: 2px solid rgba(201, 169, 98, 0.5);
+      outline-offset: 2px;
+    }
+
+    .btn-ghost:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+    /* Remove query "×" button */
+    .btn-remove {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid rgba(250, 249, 246, 0.10);
+      border-radius: 6px;
+      color: var(--t40);
+      font-size: 14px;
+      cursor: pointer;
+      transition:
+        border-color 0.15s linear,
+        color        0.15s linear,
+        transform    0.22s var(--spring);
+    }
+
+    .btn-remove:hover {
+      border-color: rgba(220, 80, 80, 0.40);
+      color: var(--error);
+      transform: scale(1.08);
+    }
+
+    .btn-remove:focus-visible {
+      outline: 2px solid rgba(220, 80, 80, 0.5);
+      outline-offset: 2px;
+    }
+
+    /* ── Toggle ─────────────────────────────────────────────────────────── */
+    .toggle-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp1);
+      margin-bottom: var(--sp5);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .toggle-row input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-track {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      border-radius: 11px;
+      background: rgba(250, 249, 246, 0.12);
+      transition: background 0.25s var(--spring);
+      flex-shrink: 0;
+    }
+
+    .toggle-knob {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--text);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      transition: transform 0.25s var(--spring);
+    }
+
+    input[type="checkbox"]:checked + .toggle-track {
+      background: rgba(201, 169, 98, 0.55);
+    }
+
+    input[type="checkbox"]:checked + .toggle-track .toggle-knob {
+      transform: translateX(18px);
+    }
+
+    input[type="checkbox"]:focus-visible + .toggle-track {
+      outline: 2px solid rgba(201, 169, 98, 0.5);
+      outline-offset: 2px;
+    }
+
+    .toggle-label-text {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--t100);
+    }
+
+    .toggle-badge {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      padding: 3px 9px;
+      border-radius: 20px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .toggle-badge.on {
+      background: rgba(201, 169, 98, 0.18);
+      color: var(--accent);
+    }
+    .toggle-badge.off {
+      background: rgba(250, 249, 246, 0.07);
+      color: var(--t40);
+    }
+
+    .toggle-caption {
+      font-size: 12px;
+      color: var(--t35);
+      line-height: 1.5;
+      padding-left: 52px;
+    }
+
+    /* ── Status & result cards (hidden by default) ──────────────────────── */
+    .card-hidden {
+      opacity: 0;
+      transform: translateY(14px);
+      pointer-events: none;
+      transition:
+        opacity   0.4s var(--reveal),
+        transform 0.4s var(--reveal);
+    }
+
+    .card-hidden.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* ── Status card internals ──────────────────────────────────────────── */
+    .status-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--sp5);
+    }
+
+    .status-step {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--t60);
+      display: flex;
+      align-items: center;
+      gap: var(--sp2);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .status-count {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* Progress bar */
+    .progress-track {
+      height: 6px;
+      border-radius: 4px;
+      background: rgba(250, 249, 246, 0.06);
+      overflow: hidden;
+      margin-bottom: var(--sp5);
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.4s var(--reveal);
+      position: relative;
+    }
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+      animation: shimmer 1.8s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+
+    /* Log area */
+    .log-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--t35);
+      margin-bottom: var(--sp2);
+    }
+
+    .log-box {
+      background: var(--bg-dark);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--t60);
+      max-height: 200px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(201, 169, 98, 0.2) transparent;
+    }
+
+    .log-box::-webkit-scrollbar { width: 4px; }
+    .log-box::-webkit-scrollbar-track { background: transparent; }
+    .log-box::-webkit-scrollbar-thumb { background: rgba(201, 169, 98, 0.2); border-radius: 4px; }
+
+    /* Error line in log */
+    .log-error { color: var(--error); }
+
+    /* ── Result card internals ──────────────────────────────────────────── */
+    .result-count {
+      font-family: 'Playfair Display', serif;
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--t100);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: var(--sp1);
+    }
+
+    .result-count span {
+      color: var(--accent);
+    }
+
+    .result-meta {
+      font-size: 13px;
+      color: var(--t40);
+      margin-bottom: var(--sp6);
+      line-height: 1.5;
+    }
+
+    /* Error state in result area */
+    .error-msg {
+      font-size: 14px;
+      color: var(--error);
+      line-height: 1.6;
+      margin-bottom: var(--sp5);
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: rgba(201, 169, 98, 0.08);
+      margin: var(--sp5) 0;
+    }
+
+    /* ── Row helper ─────────────────────────────────────────────────────── */
+    .row-between {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp3);
+    }
+
+    /* ── Page reveal animation ──────────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    @keyframes spin {
+      to { stroke-dashoffset: -90; }
+    }
+
+    /* ── Accessibility ──────────────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="header" role="banner">
+    <div class="header-inner">
+      <div class="logo-mark">
+        <!-- AutoRise AI sunrise icon — stroke only, #C9A962 -->
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+             stroke="#C9A962" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <!-- Horizon line -->
+          <line x1="3" y1="17" x2="21" y2="17"/>
+          <!-- Sun arc (semicircle above horizon) -->
+          <path d="M5 17 A7 7 0 0 1 19 17"/>
+          <!-- Rays -->
+          <line x1="12" y1="3"   x2="12" y2="5.5"/>
+          <line x1="19.5" y1="6.5" x2="17.8" y2="8.2"/>
+          <line x1="4.5"  y1="6.5" x2="6.2"  y2="8.2"/>
+          <line x1="22"   y1="12"  x2="19.5" y2="12"/>
+          <line x1="2"    y1="12"  x2="4.5"  y2="12"/>
+        </svg>
+        <span class="logo-name">Autorise AI</span>
+      </div>
+      <div class="logo-sep" aria-hidden="true"></div>
+      <span class="app-subtitle">Lead Scraper</span>
+    </div>
+  </header>
+
+  <!-- ── Main ───────────────────────────────────────────────────────────── -->
+  <main class="main" role="main">
+
+    <!-- Form card -->
+    <section class="card" aria-labelledby="form-heading">
+      <form id="scrape-form" novalidate>
+
+        <!-- Search queries -->
+        <label class="label" id="query-label">Suchbegriff</label>
+        <div class="field-group" id="query-list" role="list">
+          <div class="query-row" role="listitem">
+            <input
+              type="text"
+              name="query"
+              placeholder="z. B. Heizung Sanitär Stuttgart"
+              aria-label="Suchbegriff"
+              autocomplete="off"
+              required
+            >
+          </div>
+        </div>
+
+        <button type="button" class="btn-ghost" id="btn-add-query" aria-label="Weiteren Suchbegriff hinzufügen" style="margin-bottom: var(--sp6);">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
+          </svg>
+          Weiteren Begriff hinzufügen
+        </button>
+
+        <!-- Count -->
+        <div class="row-between" style="align-items:flex-start; margin-bottom: var(--sp5);">
+          <div style="flex:1">
+            <label class="label" for="count-input">Anzahl Ergebnisse</label>
+            <input type="number" id="count-input" name="count"
+                   value="100" min="5" max="500"
+                   aria-describedby="count-hint">
+            <div id="count-hint" style="font-size:12px; color:var(--t35); margin-top:6px;">
+              5 – 500 pro Suchbegriff
+            </div>
+          </div>
+        </div>
+
+        <!-- Toggle -->
+        <div class="toggle-wrap">
+          <label class="toggle-row" for="website-check">
+            <input type="checkbox" id="website-check" name="website_check" checked>
+            <div class="toggle-track" aria-hidden="true">
+              <div class="toggle-knob"></div>
+            </div>
+            <span class="toggle-label-text">Website-Check einschließen</span>
+            <span class="toggle-badge on" id="website-badge">Website</span>
+          </label>
+          <p class="toggle-caption">
+            Klassifiziert jede Website als „Keine Website", „Einfache Website" oder „Vorhanden". Etwas langsamer.
+          </p>
+        </div>
+
+        <button type="submit" class="btn-gold" id="btn-start" aria-live="polite">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="4,2 14,8 4,14" fill="currentColor" stroke="none"/>
+          </svg>
+          Leads scrapen
+        </button>
+
+      </form>
+    </section>
+
+    <!-- Status card (hidden until job starts) -->
+    <section class="card card-hidden" id="card-status" aria-live="polite" aria-label="Status">
+      <div class="status-header">
+        <div class="status-step" id="status-step">
+          <div class="status-dot" aria-hidden="true"></div>
+          <span id="step-text">Wird gestartet…</span>
+        </div>
+        <div class="status-count" id="status-count" aria-label="Gefundene Leads"></div>
+      </div>
+
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-bar-wrap">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+
+      <div class="log-label">Log</div>
+      <div class="log-box" id="log-box" aria-label="Fortschritts-Log" tabindex="0"></div>
+    </section>
+
+    <!-- Result card (hidden until done) -->
+    <section class="card card-result card-hidden" id="card-result" aria-label="Ergebnis">
+      <div id="result-content">
+        <div class="result-count" id="result-count">
+          <span id="result-number">0</span> Leads gefunden
+        </div>
+        <div class="result-meta" id="result-meta"></div>
+        <a class="btn-gold" id="btn-download" role="button" style="text-decoration:none; margin-top: var(--sp5);">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <line x1="8" y1="2" x2="8" y2="11"/>
+            <polyline points="4,8 8,12 12,8"/>
+            <line x1="2" y1="14" x2="14" y2="14"/>
+          </svg>
+          Excel herunterladen
+        </a>
+      </div>
+    </section>
+
+    <!-- Error card (hidden until error) -->
+    <section class="card card-error card-hidden" id="card-error" aria-live="assertive" aria-label="Fehler">
+      <span class="label" style="color: var(--error);">Fehler</span>
+      <p class="error-msg" id="error-msg"></p>
+      <button class="btn-ghost" id="btn-retry" type="button">
+        Erneut versuchen
+      </button>
+    </section>
+
+  </main>
+
+  <script>
+    // ── State ─────────────────────────────────────────────────────────────
+    let currentJobId = null;
+    let pollInterval = null;
+    let logLineCount = 0;
+
+    // ── Elements ──────────────────────────────────────────────────────────
+    const form        = document.getElementById('scrape-form');
+    const btnStart    = document.getElementById('btn-start');
+    const btnAddQuery = document.getElementById('btn-add-query');
+    const btnRetry    = document.getElementById('btn-retry');
+    const queryList   = document.getElementById('query-list');
+    const countInput  = document.getElementById('count-input');
+    const websiteChk  = document.getElementById('website-check');
+    const websiteBadge = document.getElementById('website-badge');
+
+    // Update badge when toggle changes
+    function updateWebsiteBadge() {
+      if (websiteChk.checked) {
+        websiteBadge.textContent = 'Website';
+        websiteBadge.className = 'toggle-badge on';
+      } else {
+        websiteBadge.textContent = 'Keine Website';
+        websiteBadge.className = 'toggle-badge off';
+      }
+    }
+    websiteChk.addEventListener('change', updateWebsiteBadge);
+
+    const cardStatus  = document.getElementById('card-status');
+    const cardResult  = document.getElementById('card-result');
+    const cardError   = document.getElementById('card-error');
+
+    const stepText    = document.getElementById('step-text');
+    const statusCount = document.getElementById('status-count');
+    const progressFill = document.getElementById('progress-fill');
+    const progressWrap = document.getElementById('progress-bar-wrap');
+    const logBox      = document.getElementById('log-box');
+
+    const resultNumber = document.getElementById('result-number');
+    const resultMeta   = document.getElementById('result-meta');
+    const btnDownload  = document.getElementById('btn-download');
+    const errorMsg     = document.getElementById('error-msg');
+
+    // ── Query management ──────────────────────────────────────────────────
+    function updateRemoveButtons() {
+      const rows = queryList.querySelectorAll('.query-row');
+      rows.forEach((row, i) => {
+        const btn = row.querySelector('.btn-remove');
+        if (btn) btn.style.display = rows.length > 1 ? 'flex' : 'none';
+      });
+    }
+
+    function addQueryRow(value = '') {
+      const row = document.createElement('div');
+      row.className = 'query-row';
+      row.setAttribute('role', 'listitem');
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.name = 'query';
+      input.placeholder = 'z. B. Elektriker Stuttgart';
+      input.setAttribute('aria-label', 'Suchbegriff');
+      input.setAttribute('autocomplete', 'off');
+      input.value = value;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn-remove';
+      removeBtn.setAttribute('aria-label', 'Suchbegriff entfernen');
+      removeBtn.innerHTML = '×';
+      removeBtn.addEventListener('click', () => {
+        row.remove();
+        updateRemoveButtons();
+      });
+
+      row.append(input, removeBtn);
+      queryList.appendChild(row);
+      updateRemoveButtons();
+      input.focus();
+    }
+
+    btnAddQuery.addEventListener('click', () => addQueryRow());
+    updateRemoveButtons();
+
+    // ── Form submit ───────────────────────────────────────────────────────
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const inputs = queryList.querySelectorAll('input[type="text"]');
+      const queries = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+      if (!queries.length) { inputs[0].focus(); return; }
+
+      const count = Math.max(5, Math.min(500, parseInt(countInput.value) || 100));
+      const websiteCheck = websiteChk.checked;
+
+      // Reset UI
+      hideCard(cardResult);
+      hideCard(cardError);
+      logBox.textContent = '';
+      logLineCount = 0;
+      setProgress(0);
+      stepText.textContent = 'Wird gestartet…';
+      statusCount.textContent = '';
+
+      // Disable form
+      setFormDisabled(true);
+      showCard(cardStatus);
+
+      try {
+        const resp = await fetch('/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ queries, count, website_check: websiteCheck }),
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || data.error) {
+          showError(data.error || 'Unbekannter Fehler beim Starten.');
+          return;
+        }
+
+        currentJobId = data.job_id;
+        pollInterval = setInterval(poll, 2000);
+
+      } catch (err) {
+        showError('Server nicht erreichbar. Läuft app.py noch?');
+      }
+    });
+
+    // ── Polling ───────────────────────────────────────────────────────────
+    async function poll() {
+      if (!currentJobId) return;
+      try {
+        const resp = await fetch(`/status/${currentJobId}`);
+        if (!resp.ok) return;
+        const job = await resp.json();
+
+        // Progress
+        setProgress(job.progress || 0);
+
+        // Step text
+        if (job.step) stepText.textContent = job.step;
+
+        // Record count
+        if (job.record_count > 0) {
+          statusCount.textContent = `${job.record_count} Leads`;
+        }
+
+        // Append new log lines
+        if (job.log && job.log.length > logLineCount) {
+          const newLines = job.log.slice(logLineCount);
+          logLineCount = job.log.length;
+          newLines.forEach(line => {
+            const p = document.createElement('p');
+            p.textContent = line;
+            if (line.toLowerCase().includes('fehler') || line.toLowerCase().includes('error')) {
+              p.className = 'log-error';
+            }
+            logBox.appendChild(p);
+          });
+          logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        if (job.status === 'done') {
+          clearInterval(pollInterval);
+          pollInterval = null;
+          onDone(job);
+        } else if (job.status === 'error') {
+          clearInterval(pollInterval);
+          pollInterval = null;
+          onError(job.error || 'Unbekannter Fehler.');
+        }
+
+      } catch (err) {
+        // Network blip — keep polling
+      }
+    }
+
+    // ── Done ──────────────────────────────────────────────────────────────
+    function onDone(job) {
+      setProgress(100);
+      stepText.textContent = 'Fertig';
+      statusCount.textContent = `${job.record_count} Leads`;
+
+      resultNumber.textContent = job.record_count;
+
+      // Build meta line from job queries
+      const today = new Date().toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
+      resultMeta.textContent = today;
+
+      btnDownload.href = `/download/${currentJobId}`;
+      showCard(cardResult);
+      setFormDisabled(false);
+    }
+
+    // ── Error ─────────────────────────────────────────────────────────────
+    function onError(msg) {
+      stepText.textContent = 'Fehler';
+      showError(msg);
+    }
+
+    function showError(msg) {
+      hideCard(cardStatus);
+      errorMsg.textContent = msg;
+      showCard(cardError);
+      setFormDisabled(false);
+    }
+
+    btnRetry.addEventListener('click', () => {
+      hideCard(cardError);
+    });
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+    function showCard(el) {
+      el.classList.add('visible');
+    }
+
+    function hideCard(el) {
+      el.classList.remove('visible');
+    }
+
+    function setProgress(pct) {
+      progressFill.style.width = `${pct}%`;
+      progressWrap.setAttribute('aria-valuenow', pct);
+    }
+
+    function setFormDisabled(disabled) {
+      btnStart.disabled = disabled;
+      btnAddQuery.disabled = disabled;
+      const inputs = form.querySelectorAll('input');
+      inputs.forEach(i => i.disabled = disabled);
+      if (disabled) {
+        btnStart.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke-dasharray="30 60" stroke-dashoffset="0" style="animation: spin 1s linear infinite; transform-origin: center">
+            </circle>
+          </svg>
+          Läuft…`;
+      } else {
+        btnStart.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="4,2 14,8 4,14" fill="currentColor" stroke="none"/>
+          </svg>
+          Leads scrapen`;
+      }
+    }
+  </script>
+</body>
+</html>
