@@ -236,10 +236,12 @@ def _run_job(job_id: str, queries: list[str], count: int, website_check: bool) -
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    logger.info("Lead Scraper läuft auf http://127.0.0.1:5001")
+    port = int(os.environ.get("PORT", 5001))
+    host = "0.0.0.0" if port != 5001 else "127.0.0.1"
+    logger.info("Lead Scraper läuft auf http://%s:%d", host, port)
     app.run(
-        host="127.0.0.1",
-        port=5001,
+        host=host,
+        port=port,
         debug=False,
-        use_reloader=False,  # critical: reloader breaks launchd service
+        use_reloader=False,
     )
