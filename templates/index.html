@@ -96,6 +96,15 @@
       flex: 1;
     }
 
+    a.logo-mark {
+      text-decoration: none;
+      color: inherit;
+    }
+    a.logo-mark:hover .logo-name {
+      color: var(--accent);
+      transition: color 0.2s;
+    }
+
     .logo-name {
       font-family: 'Source Sans 3', sans-serif;
       font-weight: 700;
@@ -420,6 +429,28 @@
       color: var(--t40);
     }
 
+    /* ── Footer ─────────────────────────────────────────────────────────── */
+    .footer {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: var(--sp5) var(--sp6) var(--sp7);
+      font-size: 12px;
+      color: var(--t40);
+    }
+
+    .footer a {
+      color: var(--t40);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(250, 249, 246, 0.15);
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .footer a:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
     .toggle-caption {
       font-size: 12px;
       color: var(--t35);
@@ -612,7 +643,7 @@
   <!-- ── Header ─────────────────────────────────────────────────────────── -->
   <header class="header" role="banner">
     <div class="header-inner">
-      <div class="logo-mark">
+      <a class="logo-mark" href="https://www.autoriseai.com" target="_blank" rel="noopener noreferrer">
         <!-- AutoRise AI sunrise icon — stroke only, #C9A962 -->
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
              stroke="#C9A962" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
@@ -629,7 +660,7 @@
           <line x1="2"    y1="12"  x2="4.5"  y2="12"/>
         </svg>
         <span class="logo-name">Autorise AI</span>
-      </div>
+      </a>
       <div class="logo-sep" aria-hidden="true"></div>
       <span class="app-subtitle">Lead Scraper</span>
     </div>
@@ -996,5 +1027,11 @@
       }
     }
   </script>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+  <footer class="footer">
+    Made by <a href="https://linktr.ee/eliasmostafi" target="_blank" rel="noopener noreferrer">Elias Mostafi</a>
+  </footer>
+
 </body>
 </html>
