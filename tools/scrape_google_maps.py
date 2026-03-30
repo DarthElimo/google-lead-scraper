@@ -67,7 +67,7 @@ def _scroll_results_feed(page, target_count: int) -> None:
             _random_delay(1.5, 2.5)
             continue
 
-        _random_delay(1.8, 3.2)
+        _random_delay(2.5, 4.0)
 
         cards = page.query_selector_all('a[href*="/maps/place/"]')
         current_count = len(cards)
@@ -78,7 +78,7 @@ def _scroll_results_feed(page, target_count: int) -> None:
 
         if current_count == previous_count:
             stall_count += 1
-            if stall_count >= 3:
+            if stall_count >= 6:
                 logger.info(
                     "Keine weiteren Ergebnisse. Gefunden: %d (Ziel war %d)",
                     current_count, target_count
