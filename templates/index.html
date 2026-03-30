@@ -511,6 +511,35 @@
       color: var(--accent);
     }
 
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: var(--sp3);
+    }
+
+    .status-pct {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      min-width: 3ch;
+      text-align: right;
+    }
+
+    .elapsed-row {
+      font-size: 12px;
+      color: var(--t40);
+      margin-top: -10px;
+      margin-bottom: var(--sp5);
+      letter-spacing: 0.02em;
+    }
+
+    #elapsed-timer {
+      font-variant-numeric: tabular-nums;
+      color: var(--t60);
+    }
+
     /* Progress bar */
     .progress-track {
       height: 6px;
@@ -740,11 +769,18 @@
           <div class="status-dot" aria-hidden="true"></div>
           <span id="step-text">Wird gestartet…</span>
         </div>
-        <div class="status-count" id="status-count" aria-label="Gefundene Leads"></div>
+        <div class="status-right">
+          <span class="status-pct" id="progress-pct">0%</span>
+          <span class="status-count" id="status-count" aria-label="Gefundene Leads"></span>
+        </div>
       </div>
 
       <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-bar-wrap">
         <div class="progress-fill" id="progress-fill"></div>
+      </div>
+
+      <div class="elapsed-row">
+        <span id="elapsed-timer">0:00</span> vergangen
       </div>
 
       <div class="log-label">Log</div>
@@ -786,6 +822,8 @@
     let pollInterval = null;
     let logLineCount = 0;
     let consecutiveErrors = 0;
+    let elapsedInterval = null;
+    let jobStartTime = null;
 
     // ── Elements ──────────────────────────────────────────────────────────
     const form        = document.getElementById('scrape-form');
@@ -904,6 +942,7 @@
         }
 
         currentJobId = data.job_id;
+        startElapsedTimer();
         pollInterval = setInterval(poll, 2000);
 
       } catch (err) {
@@ -921,6 +960,7 @@
           if (consecutiveErrors >= 5) {
             clearInterval(pollInterval);
             pollInterval = null;
+            stopElapsedTimer();
             showError('Verbindung zum Server verloren. Bitte die Seite neu laden.');
           }
           return;
@@ -957,10 +997,12 @@
         if (job.status === 'done') {
           clearInterval(pollInterval);
           pollInterval = null;
+          stopElapsedTimer();
           onDone(job);
         } else if (job.status === 'error') {
           clearInterval(pollInterval);
           pollInterval = null;
+          stopElapsedTimer();
           onError(job.error || 'Unbekannter Fehler.');
         }
 
@@ -969,6 +1011,7 @@
         if (consecutiveErrors >= 5) {
           clearInterval(pollInterval);
           pollInterval = null;
+          stopElapsedTimer();
           showError('Server nicht erreichbar. Bitte die Seite neu laden.');
         }
       }
@@ -1017,9 +1060,30 @@
       el.classList.remove('visible');
     }
 
+    const progressPct = document.getElementById('progress-pct');
+    const elapsedEl   = document.getElementById('elapsed-timer');
+
     function setProgress(pct) {
       progressFill.style.width = `${pct}%`;
       progressWrap.setAttribute('aria-valuenow', pct);
+      progressPct.textContent = `${Math.round(pct)}%`;
+    }
+
+    function startElapsedTimer() {
+      jobStartTime = Date.now();
+      elapsedEl.textContent = '0:00';
+      clearInterval(elapsedInterval);
+      elapsedInterval = setInterval(() => {
+        const secs = Math.floor((Date.now() - jobStartTime) / 1000);
+        const m = Math.floor(secs / 60);
+        const s = String(secs % 60).padStart(2, '0');
+        elapsedEl.textContent = `${m}:${s}`;
+      }, 1000);
+    }
+
+    function stopElapsedTimer() {
+      clearInterval(elapsedInterval);
+      elapsedInterval = null;
     }
 
     function setFormDisabled(disabled) {
