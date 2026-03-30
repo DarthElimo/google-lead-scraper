@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import random
+import re
 import time
 import urllib.parse
 from pathlib import Path
@@ -152,7 +153,6 @@ def _extract_card_data(page, cards: list) -> list[dict]:
             _random_delay(0.4, 1.0)
             card.click()
 
-            # Wait for detail panel header
             try:
                 page.wait_for_selector("h1.DUwDvf", timeout=6000)
             except PlaywrightTimeoutError:
@@ -166,9 +166,24 @@ def _extract_card_data(page, cards: list) -> list[dict]:
             address = _extract_aria_label(page, 'button[data-item-id="address"]', "Adresse: ")
             phone = _extract_aria_label(page, 'button[data-item-id^="phone:tel:"]', "Telefon: ")
             website = _extract_href(page, 'a[data-item-id="authority"]')
-            rating_raw = _extract_text(page, "span.MW4etd")
-            reviews_raw = _extract_text(page, "span.UY7F9")
             maps_link = page.url
+
+            # Rating from aria-label on the star span, e.g. "4,6 Sterne"
+            rating_raw = None
+            star = page.query_selector("span.ceNzKf")
+            if star:
+                lbl = star.get_attribute("aria-label") or ""
+                m = re.search(r"([\d,]+)\s*Sterne?", lbl)
+                if m:
+                    rating_raw = m.group(1)
+            # Fallback: text of first MW4etd in detail panel
+            if not rating_raw:
+                mains = page.query_selector_all('div[role="main"]')
+                detail = mains[1] if len(mains) > 1 else (mains[0] if mains else None)
+                if detail:
+                    el = detail.query_selector("span.MW4etd")
+                    if el:
+                        rating_raw = el.inner_text().strip()
 
             record = {
                 "name": name,
@@ -176,14 +191,14 @@ def _extract_card_data(page, cards: list) -> list[dict]:
                 "address": address,
                 "website": website,
                 "rating": _parse_rating(rating_raw),
-                "review_count": _parse_review_count(reviews_raw),
+                "review_count": None,
                 "maps_link": maps_link,
             }
 
             logger.debug(
-                "[%d/%d] %s | %s | %s",
+                "[%d/%d] %s | rating=%s | %s",
                 i + 1, len(cards),
-                name or "—", phone or "—", website or "—"
+                name or "—", rating_raw, phone or "—"
             )
             results.append(record)
 
@@ -192,6 +207,7 @@ def _extract_card_data(page, cards: list) -> list[dict]:
             results.append(_empty_record())
 
     return results
+
 
 
 def _empty_record() -> dict:

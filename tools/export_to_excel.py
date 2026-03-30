@@ -22,7 +22,6 @@ COLUMNS = [
     ("Adresse", 45),
     ("Website", 40),
     ("Rating", 8),
-    ("Bewertungen", 12),
     ("Maps Link", 50),
     ("Website Status", 20),
 ]
@@ -33,7 +32,6 @@ FIELD_KEYS = [
     "address",
     "website",
     "rating",
-    "review_count",
     "maps_link",
     "website_status",
 ]
@@ -80,12 +78,15 @@ def _build_workbook(records: list[dict]) -> openpyxl.Workbook:
             if fill:
                 cell.fill = fill
 
-            # Website URL (col 4) — clickable hyperlink
-            if key == "website" and value:
-                url = _safe(value)
-                cell.value = url
-                cell.hyperlink = url
-                cell.font = HYPERLINK_FONT
+            # Website URL (col 4) — clickable hyperlink or "Keine Website"
+            if key == "website":
+                if value:
+                    url = _safe(value)
+                    cell.value = url
+                    cell.hyperlink = url
+                    cell.font = HYPERLINK_FONT
+                else:
+                    cell.value = "Keine Website"
 
             # Maps Link (col 7) — clickable hyperlink
             elif key == "maps_link" and value:
