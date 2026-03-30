@@ -785,6 +785,7 @@
     let currentJobId = null;
     let pollInterval = null;
     let logLineCount = 0;
+    let consecutiveErrors = 0;
 
     // ── Elements ──────────────────────────────────────────────────────────
     const form        = document.getElementById('scrape-form');
@@ -880,6 +881,7 @@
       hideCard(cardError);
       logBox.textContent = '';
       logLineCount = 0;
+      consecutiveErrors = 0;
       setProgress(0);
       stepText.textContent = 'Wird gestartet…';
       statusCount.textContent = '';
@@ -914,7 +916,16 @@
       if (!currentJobId) return;
       try {
         const resp = await fetch(`/status/${currentJobId}`);
-        if (!resp.ok) return;
+        if (!resp.ok) {
+          consecutiveErrors++;
+          if (consecutiveErrors >= 5) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+            showError('Verbindung zum Server verloren. Bitte die Seite neu laden.');
+          }
+          return;
+        }
+        consecutiveErrors = 0;
         const job = await resp.json();
 
         // Progress
@@ -954,7 +965,12 @@
         }
 
       } catch (err) {
-        // Network blip — keep polling
+        consecutiveErrors++;
+        if (consecutiveErrors >= 5) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+          showError('Server nicht erreichbar. Bitte die Seite neu laden.');
+        }
       }
     }
 
