@@ -210,6 +210,102 @@ def _extract_card_data(page, cards: list) -> list[dict]:
 
 
 
+def _extract_from_sidebar(card) -> dict:
+    """
+    Reads business data directly from a sidebar card element — no click required.
+    Phone and website are extracted if Google has surfaced them as chips in the card;
+    otherwise they remain None and will be fetched by clicking in the hybrid function.
+    """
+    # Name
+    name_el = card.query_selector("div.qBF1Pd")
+    name = name_el.inner_text().strip() if name_el else None
+    if not name:
+        name = (card.get_attribute("aria-label") or "").strip() or None
+
+    # Rating
+    rating_el = card.query_selector("span.MW4etd")
+    rating_raw = rating_el.inner_text().strip() if rating_el else None
+
+    # Address / area snippet
+    address = None
+    info_el = card.query_selector("div.W4Efsd")
+    if info_el:
+        parts = [p.strip() for p in info_el.inner_text().split("·") if p.strip()]
+        address = parts[-1] if parts else None
+
+    # Phone — tel: link in card if Google surfaced it
+    phone = None
+    tel_el = card.query_selector('a[href^="tel:"]')
+    if tel_el:
+        phone = (tel_el.get_attribute("href") or "").replace("tel:", "").strip() or None
+
+    # Website — non-Google external href in card
+    website = None
+    for a in card.query_selector_all("a[href]"):
+        href = a.get_attribute("href") or ""
+        if href.startswith("http") and "google.com" not in href and "maps.app" not in href:
+            website = href
+            break
+
+    return {
+        "name": name,
+        "phone": phone,
+        "address": address,
+        "website": website,
+        "rating": _parse_rating(rating_raw),
+        "review_count": None,
+        "maps_link": card.get_attribute("href"),
+    }
+
+
+def _extract_card_data_hybrid(page, cards: list) -> list[dict]:
+    """
+    Hybrid extraction: read sidebar first (no click), then click only if
+    phone OR website is missing. Significantly faster than clicking every card.
+    """
+    results = []
+
+    for i, card in enumerate(cards):
+        try:
+            record = _extract_from_sidebar(card)
+
+            needs_click = not record["phone"] or not record["website"]
+            if needs_click:
+                _random_delay(0.3, 0.7)
+                card.click()
+                try:
+                    page.wait_for_selector("h1.DUwDvf", timeout=6000)
+                except PlaywrightTimeoutError:
+                    logger.warning("Karte %d: Detail-Panel nicht geladen, übersprungen.", i + 1)
+                    results.append(record)
+                    continue
+                _random_delay(0.2, 0.5)
+
+                if not record["phone"]:
+                    record["phone"] = _extract_aria_label(
+                        page, 'button[data-item-id^="phone:tel:"]', "Telefon: "
+                    )
+                if not record["website"]:
+                    record["website"] = _extract_href(page, 'a[data-item-id="authority"]')
+                record["maps_link"] = page.url
+
+            logger.debug(
+                "[%d/%d] %s | phone=%s | website=%s | clicked=%s",
+                i + 1, len(cards),
+                record["name"] or "—",
+                "✓" if record["phone"] else "—",
+                "✓" if record["website"] else "—",
+                "ja" if needs_click else "nein",
+            )
+            results.append(record)
+
+        except Exception as e:
+            logger.warning("Karte %d: Fehler beim Extrahieren: %s", i + 1, e)
+            results.append(_empty_record())
+
+    return results
+
+
 def _empty_record() -> dict:
     return {
         "name": None,
@@ -324,7 +420,7 @@ def run_scraper(query: str, target_count: int = 50) -> list[dict]:
             if not cards:
                 return []
 
-            results = _extract_card_data(page, cards)
+            results = _extract_card_data_hybrid(page, cards)
 
             # Persist session cookies for next run
             context.storage_state(path=str(BROWSER_STATE_PATH))
